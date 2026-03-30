@@ -2,12 +2,7 @@
 
 ## Proposed Hardware Stack
 
-The custom PCB should be treated as the project's lower-level control and power board. It should host the sensor front end, motor drivers, power-tree circuitry, OLED and Raspberry Pi headers, and the interfaces around an `STM32F407ZGT6` development board or equivalent STM32 core implementation.
-
-### High-Level Compute
-
-- `Raspberry Pi Zero 2 W`
-- Role: calculate net-energy benefit, supervise operating modes, log data, and send motion targets to the STM32
+The custom PCB should be treated as the project's lower-level control and power board. Following `dual_axis_solar_tracker.md`, it hosts the LDR front end, dual INA219 measurement path, motor-driver stage, OLED header, charging and regulation stages, and the interfaces around an `STM32F407ZGT6`.
 
 ### Real-Time Controller
 
@@ -17,16 +12,25 @@ The custom PCB should be treated as the project's lower-level control and power 
 ### Sensing
 
 - Four LDRs arranged in a quadrant light-sensor head with divider resistors
-- `INA219` for solar-panel bus current/voltage measurement
-- `INA219` for battery or main bus measurement so net-gain logic can compare harvested power against movement overhead
-- Two limit switches per axis for homing and over-travel protection
-- Incremental encoder feedback from geared DC motors
+- `INA219_1` for solar-panel-side current/voltage measurement
+- `INA219_2` for battery-side or load-side current/voltage measurement
+- `0.01 uF` optional capacitor on each ADC node for simple RC filtering
+
+### STM32 Pin Map
+
+- `PA0` to `PA3`: four LDR ADC channels
+- `PB6`: I2C `SCL`
+- `PB7`: I2C `SDA`
+- `PA8`: `PWMA` for yaw motor
+- `PA9`: `PWMB` for pitch motor
+- `PB0` and `PB1`: yaw direction control
+- `PB10` and `PB11`: pitch direction control
 
 ### Actuation
 
-- Two low-current geared DC motors with encoders, one for yaw and one for pitch
-- `TB6612FNG` dual H-bridge as the preferred default motor driver
-- `BTS7960` kept only as a fallback if measured stall current is too high for the compact on-board driver
+- Two geared DC motors, one for yaw and one for pitch
+- `TB6612FNG` dual H-bridge as the baseline motor driver
+- PWM sets speed and digital lines set direction through `IN1/IN2`
 
 ### Local User Interface
 
@@ -36,34 +40,39 @@ The custom PCB should be treated as the project's lower-level control and power 
 
 ### Power Path
 
-- Small solar panel feeds the measured generation path
-- Battery pack or stable input bus powers the tracker
-- `5 V / 3 A` buck converter powers Raspberry Pi and any 5 V peripherals
-- `3.3 V` logic regulator powers STM32-side sensors and digital logic
-- Motor supply remains a separately routed noisy power branch rather than being mixed with the weak-signal logic area
+- Small `5 V` to `6 V` solar panel feeds the generation path
+- `INA219_1` measures the solar path before regulation
+- `LM2596` or `TPS5430` buck stage creates a regulated `5 V` rail
+- `TP4056` manages `18650` cell charging from the regulated `5 V` input
+- `INA219_2` measures the battery-side or load-side path
+- `MT3608` boosts the battery voltage back to `5 V` for the system rail when needed
+- `3.3 V` logic regulation powers STM32-side sensors and digital logic
+- Motor supply remains separate from the weak-signal logic region even when sharing a common ground reference
 
 ## Why This Architecture Fits the Project
 
-- It preserves the RFA master-slave split between Raspberry Pi and STM32.
-- It stays within a student-feasible budget by avoiding industrial servos and oversized compute hardware.
+- It matches the newly added authoritative hardware summary.
+- It stays within a student-feasible budget and uses commonly available modules.
 - It directly supports Minghao's responsibility area: STM32 communication with motors, light sensors, and current/voltage sensors.
-- A lighter Raspberry Pi and lighter H-bridge reduce board cost, complexity, and idle power draw.
-- The PCB role is clearer: power distribution, measurement, motor driving, and communication hub.
+- The PCB role is explicit: sensing, power regulation, battery charging, power measurement, and motor driving.
+- The design exposes measurable net-energy data instead of relying only on geometric tracking logic.
 
 ## Recommended Signal Flow
 
-1. LDRs, INA219 sensors, limit switches, and encoder signals are read by the STM32.
-2. The STM32 computes filtered local telemetry and sends state packets to the Raspberry Pi over UART.
-3. The Raspberry Pi decides whether motion is worth the energy cost and sends movement or hold commands.
-4. The STM32 closes the low-level motor loop using PWM and direction outputs through the motor drivers.
-5. The OLED displays operating mode, panel power, battery state, and current axis angles.
+1. The solar panel output is measured by `INA219_1`.
+2. The regulated charging path feeds the `18650` battery through `TP4056`.
+3. The battery-side system load is measured by `INA219_2`.
+4. The STM32 reads four LDR channels through the ADC and both INA219 devices through I2C.
+5. The STM32 drives yaw and pitch through `TB6612FNG` using PWM plus direction signals.
+6. The OLED displays operating mode and electrical telemetry over the same I2C bus.
+7. A UART header can still expose telemetry to a Raspberry Pi or external host if the team keeps the higher-level optimization split.
 
 ## PCB-Level Design Rules
 
 - Use a two-layer board only if the strong-current and weak-signal regions are physically separated.
 - Keep the buck converter, motor driver, and motor connector return loops compact and away from the ADC/I2C region.
-- Provide dedicated test points for `VIN`, `5V`, `3V3`, `GND`, `SCL`, `SDA`, `UART_TX`, `UART_RX`, and the motor rail.
-- Put the Raspberry Pi on a simple UART plus power header rather than deeply coupling it into the low-level board.
+- Provide dedicated test points for `VIN`, `5V`, `3V3`, `GND`, `SCL`, `SDA`, and the motor rail, with UART pads if external supervision is retained.
+- Keep the Raspberry Pi or PC connection optional through a simple UART header rather than making it a hard dependency of the board.
 
 ## Suggested Operating Modes
 
