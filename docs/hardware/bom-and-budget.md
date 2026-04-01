@@ -5,36 +5,36 @@ All prices are rough 2026 student-market estimates in RMB. The goal is to stay b
 | Item | Qty | Est. Unit Cost (RMB) | Subtotal (RMB) | Notes |
 |---|---:|---:|---:|---|
 | STM32F407ZGT6 development board | 1 | 80 | 80 | Required controller |
-| DC geared motor | 2 | 70 | 140 | Yaw and pitch axes |
-| TB6612FNG dual H-bridge | 1 | 20 | 20 | Default on-board motor driver |
-| INA219 current/voltage sensor | 2 | 18 | 36 | Panel rail and battery rail |
-| LDR plus 10 kOhm resistor set | 1 set | 15 | 15 | Four-quadrant light sensing |
+| NEMA17 stepper motor | 2 | 80 | 160 | Yaw and pitch axes |
+| A4988 stepper driver | 2 | 20 | 40 | One driver per axis |
+| INA219 current/voltage sensor | 2 | 18 | 36 | Panel test path and motor branch |
+| BH1750 lux sensor | 16 | 8 | 128 | `16`-sensor light ring |
+| I2C mux module or IC | 1 | 20 | 20 | For repeated BH1750 addressing |
 | 0.96 in I2C OLED | 1 | 20 | 20 | Local display |
-| LM2596 or TPS5430 buck stage | 1 | 25 | 25 | Solar-side or bus-side 5 V regulation |
-| TP4056 charging module | 1 | 8 | 8 | Safe single-cell charging |
-| 18650 Li-ion cell | 1 | 20 | 20 | Battery storage |
-| MT3608 boost converter | 1 | 8 | 8 | Battery to 5 V system rail |
-| 3.3 V logic regulator stage | 1 | 8 | 8 | Logic and sensor rail |
+| 12 V 5 A power adapter | 1 | 45 | 45 | Motor branch supply |
+| 5 V logic supply | 1 | 20 | 20 | Raspberry Pi and STM32 supply |
 | Push button, connectors, and test points | 1 set | 35 | 35 | UI, debug, and assembly |
-| Small 5 V to 6 V solar panel | 1 | 80 | 80 | Demonstration source |
+| Small solar panel | 1 | 80 | 80 | Panel-under-test source |
+| Dummy load parts | 1 lot | 25 | 25 | Resistor or MOS test load for panel measurement |
 | PCB fabrication and misc. passive parts | 1 lot | 180 | 180 | Includes headers and wiring |
 | Mechanical coupling/brackets reserve | 1 lot | 150 | 150 | Shared with ME subsystem |
 
-Estimated total: `817 RMB`
+Estimated total: `1019 RMB`
 
-Budget reserve: about `683 RMB`
+Budget reserve: about `481 RMB`
 
 ## Cost Rationale
 
-- The motors are deliberately modest in power because the project goal is net gain, not fast industrial tracking.
+- `NEMA17` keeps the actuation model compatible with target-angle control and open-loop step counting after homing.
 - `INA219` is good enough for demonstration-grade energy accounting and communicates cleanly over I2C.
-- `TB6612FNG`, `TP4056`, `LM2596/TPS5430`, and `MT3608` match the new authoritative board-level design.
-- Using LDRs for directional sensing is much cheaper than precision irradiance instruments and matches the course scope.
+- `A4988` matches the final stepper control path.
+- `BH1750 + mux` matches the final light-ring interface more directly than an analog ring prototype.
+- Separate external `12V` and `5V` supplies simplify bring-up compared with a self-powered architecture.
 - The Raspberry Pi remains a system-level RL node for inference and logging, but the PCB BOM stays centered on the STM32-side hardware actually mounted on the board.
 
 ## Fallback Options
 
 - If Raspberry Pi deployment is delayed, the board can still be brought up and validated at the STM32 hardware level first.
-- If measured motor stall current is too high for `TB6612FNG`, switch only the driver stage to a higher-current alternative.
-- If worm-geared motors are unavailable, use compact metal-geared DC motors only if travel, backlash, and holding torque still meet the mechanical requirement.
-- If two INA219 boards are unnecessary, measure only the panel rail directly and infer battery usage from motor and system states.
+- If the final `NEMA17` holding torque is larger than needed, a smaller stepper can still be substituted without changing the control abstraction.
+- If the first chosen `A4988` module is hard to source, switch to another `STEP/DIR` compatible driver without changing the high-level protocol.
+- If the first mux part is hard to source, switch to another I2C mux without changing the software-level light-ring abstraction.

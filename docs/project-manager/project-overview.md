@@ -11,13 +11,14 @@ The team is building an intelligent solar tracking controller that decides when 
 - An `STM32F407ZGT6` for real-time sensing, execution, telemetry, and safety
 - A Raspberry Pi for online inference, logging, and model loading
 - `PC/云端` offline training for policy updates
-- Light sensing and power sensing for decision making and reward analysis
+- A `BH1750 + mux + 16-sensor ring` for directional light sensing
+- Two `INA219` channels for motor-power and panel-output measurement
 - Motor actuation for a dual-axis tracking mechanism
 - OLED feedback for user-visible status
 
 ## Core Idea
 
-The main objective is net energy gain, not just positional tracking. In the current RL pipeline, the online model reads the current light-ring intensity and the current two-axis angle, then predicts the next target angles for the two axes. The lower-level execution and safety checks remain on the `STM32`.
+The main objective is net energy gain, not just positional tracking. In the current RL pipeline, the online model reads the current light-ring intensity and the current two-axis angle, then predicts the next target angles for the two axes. Here the current angle is defined as the previous target angle accepted by the `STM32`. The lower-level execution and safety checks remain on the `STM32`.
 
 ## Success Criteria
 
@@ -26,6 +27,7 @@ The main objective is net energy gain, not just positional tracking. In the curr
 - Avoidance of negative net energy gain in low-light or rapidly changing conditions
 - A stable online pipeline from `STM32` state upload to Raspberry Pi inference to target-angle command return
 - Live OLED display of key metrics such as voltage, current, and operating state
+- A reproducible external-power test setup with separate `12V` motor power and `5V` logic power
 
 ## Constraints
 

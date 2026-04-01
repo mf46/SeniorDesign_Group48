@@ -22,7 +22,8 @@
 
 ## Ethics and Safety
 
-- Battery, rotating mechanism, and electrical safety
+- External power, rotating mechanism, and electrical safety
 - Honest presentation of energy-saving claims
 - Honest presentation of what the RL model sees online versus what is only used in training and evaluation
+- Honest presentation that the final implementation is an externally powered test platform rather than a self-powered PV node
 - Reference IEEE Code of Ethics and relevant safety practices

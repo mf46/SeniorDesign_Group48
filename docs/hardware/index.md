@@ -4,9 +4,8 @@ This folder captures the proposed electrical and embedded architecture for the e
 
 ## Start Here
 
-- [Authoritative hardware summary](./dual_axis_solar_tracker.md)
-- [Proposal review](./proposal-review.md)
 - [System architecture](./system-architecture.md)
+- [Proposal review](./proposal-review.md)
 - [BOM and budget](./bom-and-budget.md)
 - [Interfaces and protocols](./interfaces-and-protocols.md)
 - [Risks and tradeoffs](./risks-and-tradeoffs.md)
@@ -14,8 +13,8 @@ This folder captures the proposed electrical and embedded architecture for the e
 ## Design Summary
 
 - `STM32F407ZGT6` is the mandatory real-time controller.
-- `dual_axis_solar_tracker.md` is the board-level source of truth.
-- The custom PCB acts as the low-level control, sensing, power-conditioning, charging, and motor-drive board.
-- Four-quadrant LDR sensing, dual `INA219` measurement, `TB6612FNG`, `LM2596/TPS5430`, `TP4056`, and `MT3608` form the baseline electrical stack.
+- `system-architecture.md` is the current hardware source of truth.
+- The custom PCB acts as the low-level control, sensing, logic-interface, and motor-drive board.
+- A `BH1750 + mux + 16-sensor ring`, dual `INA219` measurement, `NEMA17` stepper motors, `A4988` stepper drivers, and separate external `12V` and `5V` supplies form the current electrical stack.
 - In the current RL pipeline, the Raspberry Pi is the online inference and logging node connected above the STM32 control board.
 - The hardware notes should treat Pi connectivity as part of the RL control path, while still keeping the board-level hardware description focused on the STM32-centered PCB.

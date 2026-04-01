@@ -6,53 +6,45 @@
 |---|---|---|
 | STM32 to OLED | I2C | Standard, low pin count, low bandwidth |
 | STM32 to INA219 sensors | I2C | Native sensor interface, shared bus supported |
-| STM32 to LDR quadrant sensors | ADC | Analog voltage dividers are simplest and cheapest |
-| STM32 to motor driver | PWM + GPIO | Standard speed, direction, and standby control for a dual H-bridge |
+| STM32 to `BH1750 + mux` light ring | I2C | Multiplexed digital lux sensing matches the 16-sensor ring plan |
+| STM32 to `A4988` drivers | STEP/DIR GPIO | Matches `NEMA17` stepper control cleanly |
 | Raspberry Pi to STM32 | UART | Carries RL state upload and target-angle return |
 
 ## Board-Level Pin Assignment
 
 | Signal | STM32 Pin |
 |---|---|
-| `LDR1` | `PA0` |
-| `LDR2` | `PA1` |
-| `LDR3` | `PA2` |
-| `LDR4` | `PA3` |
 | `I2C_SCL` | `PB6` |
 | `I2C_SDA` | `PB7` |
-| `PWMA` | `PA8` |
-| `AIN1` | `PB0` |
-| `AIN2` | `PB1` |
-| `PWMB` | `PA9` |
-| `BIN1` | `PB10` |
-| `BIN2` | `PB11` |
+| `YAW_STEP` | `PA8` |
+| `YAW_DIR_EN` | `PB0/PB1` |
+| `PITCH_STEP` | `PA9` |
+| `PITCH_DIR_EN` | `PB10/PB11` |
 
 ## I2C Bus Details
 
-- Both `INA219` devices and the OLED share the same `3.3 V` I2C bus.
-- Suggested addresses from the source-of-truth design:
+- Both `INA219` devices, the OLED, and the mux controller share the same logic-side I2C bus.
+- Suggested addresses from the current design:
   - `INA219_1`: `0x40`
   - `INA219_2`: `0x41`
+- `BH1750` sensors sit behind the mux rather than directly on the shared bus.
 - STM32 master pins:
   - `PB6`: `SCL`
   - `PB7`: `SDA`
 
-## ADC Front End
+## Light-Ring Interface
 
-- Each LDR forms a `3.3 V` divider with a `10 kOhm` resistor.
-- Each ADC node may include a `0.01 uF` capacitor to ground for noise filtering.
-- These local sensor values are sampled by the STM32 and can be further transformed into the online light-state representation used by the Raspberry Pi model.
+- The final light ring uses `16` `BH1750` sensors through an I2C mux.
+- The mux isolates repeated sensor addresses while keeping the STM32-side protocol simple.
+- The STM32 polls each mux channel and packs the resulting lux readings into the light-ring representation used by the Raspberry Pi model.
 
-## Motor-Driver Interface
+## Stepper-Driver Interface
 
-- `TB6612FNG` receives:
-  - `PWMA` and `PWMB` for speed
-  - `AIN1/AIN2` and `BIN1/BIN2` for direction
-- Direction logic:
-  - `1/0`: forward
-  - `0/1`: reverse
-  - `0/0`: stop
-  - `1/1`: brake
+- Each `NEMA17` axis is driven through an `A4988` stepper driver.
+- The STM32 exports:
+  - `STEP` for pulse generation
+  - `DIR` and optional `EN` style control lines
+- The protocol assumption is `STEP/DIR`, not PWM plus H-bridge direction.
 
 ## Raspberry Pi Communication Link
 
@@ -66,16 +58,15 @@
 
 - Online inference input is intentionally narrow:
   - current light-ring readings
-  - current two-axis angle
+  - current two-axis angle, defined as the previous target angle accepted by the `STM32`
 - Training and evaluation logs may additionally contain:
   - voltage and current measurements
   - power estimates
-  - remaining-energy estimate
   - safety flags or error codes
 
 ## PCB Interface Notes
 
-- The OLED and both INA219 devices should share one `3.3 V` I2C bus with configurable pull-ups.
-- The LDR network should include RC filtering at the ADC nodes and stay far from buck and motor switching regions.
-- The solar measurement path and load measurement path should be physically legible in the schematic and layout.
-- Motor power must come from the regulated system supply, not from the STM32 rail.
+- The `BH1750 + mux` bus should stay physically separate from noisy motor-driver routing.
+- The solar measurement path and motor measurement path should be physically legible in the schematic and layout.
+- Motor power must come from the external `12 V` supply branch, not from the STM32 rail.
+- The `12 V` and `5 V` branches must share a common ground reference for control signaling.

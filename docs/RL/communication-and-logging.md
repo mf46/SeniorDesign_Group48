@@ -16,6 +16,9 @@
 - 一圈光照传感器读数 `light_ring = [R1..Rn]`
 - 当前两个步进电机角度 `current_angle = [theta1, theta2]`
 
+其中 `current_angle` 定义为上一轮 inference 输出、并被 `STM32` 接受执行的目标角度。
+当前 light ring 的硬件实现方案是 `BH1750 + mux + 16-sensor ring`。
+
 这部分数据构成模型 inference 的直接输入。
 
 ## Raspberry Pi -> STM32
@@ -23,6 +26,8 @@
 树莓派发给 `STM32` 的控制输出包应至少包含：
 
 - 下一步两个步进电机目标角度 `target_angle = [target_theta1, target_theta2]`
+
+如果本轮不需要移动，树莓派直接返回 `target_angle = current_angle`。
 
 收到目标角度后，`STM32` 负责完成：
 

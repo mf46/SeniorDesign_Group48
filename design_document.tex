@@ -31,17 +31,17 @@ Advisor: \texttt{TODO}
 \subsection{Problem Statement}
 Small-scale photovoltaic systems often lose harvest efficiency because a fixed solar panel cannot stay aligned with the direction of maximum irradiance throughout the day. A straightforward active tracker is not automatically a good solution, because every motor movement consumes energy. Under cloud cover, low-light conditions, or rapidly changing irradiance, the energy spent rotating the panel can exceed the extra electrical energy generated after the movement. Existing low-cost tracking solutions therefore fail to address the more important systems question: whether a movement produces positive \emph{net} energy gain after accounting for sensing, computation, and actuation cost.
 
-This project addresses that gap by building a self-contained dual-axis photovoltaic tracker that decides not only where to point the panel, but also whether moving is worth the energy cost. The result is a more realistic microgrid-oriented controller for small distributed energy resources, where energy-aware behavior matters more than maximizing motion.
+This project addresses that gap by building a dual-axis photovoltaic tracking test platform that decides not only where to point the panel, but also whether moving is worth the energy cost. The result is a more realistic controller-evaluation platform for small distributed-energy scenarios, where energy-aware behavior matters more than maximizing motion.
 
 \subsection{Solution Overview and Visual Aid}
-The proposed system uses an STM32-centered hardware architecture with a Raspberry Pi-based RL inference layer above it. An STM32F407ZGT6 microcontroller on a dedicated lower-level control PCB handles real-time sensing, local motor control, safety checks, power measurement, battery-management supervision, and OLED status output. A dual-axis mechanical platform changes the solar panel yaw and pitch angles using low-power geared motors driven through a `TB6612FNG` dual H-bridge. The current RL pipeline sends online state from the `STM32` to the Raspberry Pi, where the deployed model reads current light information and the current two-axis angle, then predicts the next target angles for the two axes. The Raspberry Pi returns those target angles to the `STM32`, which executes them locally. Electrical telemetry is still measured and logged, but it is reserved for reward design, evaluation, and offline training rather than the online inference input itself.
+The proposed system uses an STM32-centered hardware architecture with a Raspberry Pi-based RL inference layer above it. An STM32F407ZGT6 microcontroller on a dedicated lower-level control PCB handles real-time sensing, local motor control, safety checks, power measurement, and OLED status output. A dual-axis mechanical platform changes the solar panel yaw and pitch angles using `NEMA17` stepper motors driven through `A4988` stepper drivers. The current RL pipeline sends online state from the `STM32` to the Raspberry Pi, where the deployed model reads current light-ring information and the current two-axis angle, then predicts the next target angles for the two axes. The Raspberry Pi returns those target angles to the `STM32`, which executes them locally. In the current pipeline, the ``current angle'' used online is defined as the previous target angle accepted by the `STM32` after homing, not as an independently measured encoder value. Electrical telemetry is still measured and logged, but it is reserved for reward design, evaluation, and offline training rather than the online inference input itself. The final implementation is externally powered, with a `12~V` motor branch and a `5~V` logic branch, while the solar panel is measured only as a test source rather than used as the controller power rail. The light ring is implemented as a `BH1750 + mux + 16-sensor` array.
 
-The target operating sequence is simple: after a single button press, the tracker performs self-check and homing, enters autonomous tracking mode, and continuously balances directional light information against measured power and battery state. When ambient conditions make movement unprofitable, the controller pauses motion to avoid negative net gain.
+The target operating sequence is simple: after a single button press, the tracker performs self-check and homing, enters autonomous tracking mode, and continuously balances directional light information against measured panel output and measured motor cost. When ambient conditions make movement unprofitable, the controller pauses motion to avoid negative net gain.
 
 \begin{figure}[H]
 \centering
 \fbox{\rule{0pt}{2.1in}\rule{0.9\linewidth}{0pt}}
-\caption{Visual aid placeholder. Insert a figure showing the solar tracker in context, including the panel, dual-axis frame, Raspberry Pi inference node, STM32 controller, battery, and sensing path.}
+\caption{Visual aid placeholder. Insert a figure showing the solar tracker in context, including the panel under test, dual-axis frame, Raspberry Pi inference node, STM32 controller, external 12 V and 5 V supplies, and sensing path.}
 \label{fig:visual-aid}
 \end{figure}
 
@@ -62,27 +62,27 @@ The system is divided into six functional blocks: online inference, embedded con
 \begin{figure}[H]
 \centering
 \fbox{\rule{0pt}{2.1in}\rule{0.9\linewidth}{0pt}}
-\caption{Block diagram placeholder. Show the STM32 lower-level control PCB, Raspberry Pi inference node, online state upload path, target-angle return path, shared I2C bus for OLED and INA219 sensors, ADC-connected LDR array, TB6612FNG motor-driver stage, dual-axis motors, and the power path from solar panel through buck, charger, battery, boost, and logic rails.}
+\caption{Block diagram placeholder. Show the STM32 lower-level control PCB, Raspberry Pi inference node, online state upload path, target-angle return path, shared I2C bus for OLED, INA219 devices, and the light-ring mux, the BH1750 sensor ring, the A4988 stepper-driver stage, dual-axis motors, and the split external 12 V and 5 V supply rails.}
 \label{fig:block-diagram}
 \end{figure}
 
 \subsection{Mechanical and Actuation Subsystem}
-The panel is mounted on a dual-axis frame with independent yaw and pitch motion. Yaw allows east-west reorientation, while pitch adjusts the panel elevation angle. Each axis is driven by a low-speed geared DC motor selected for adequate static torque and modest energy consumption. The motors are driven by a `TB6612FNG` H-bridge stage under STM32 PWM and direction control. In the current board mapping, the yaw motor uses `PWMA` on `PA8` with direction lines on `PB0` and `PB1`, while the pitch motor uses `PWMB` on `PA9` with direction lines on `PB10` and `PB11`.
+The panel is mounted on a dual-axis frame with independent yaw and pitch motion. Yaw allows east-west reorientation, while pitch adjusts the panel elevation angle. Each axis is driven by a `NEMA17` stepper motor selected for adequate static torque and repeatable position control. The motors are driven by `A4988` stepper drivers under STM32 `STEP/DIR` control. In the current board mapping, the yaw axis uses `STEP` on `PA8` with direction or enable lines on `PB0` and `PB1`, while the pitch axis uses `STEP` on `PA9` with direction or enable lines on `PB10` and `PB11`.
 
-This choice prioritizes low cost, sufficient torque at modest speed, and a control path that can be realized on a student PCB. Because the project goal is energy-aware tracking rather than rapid motion, the design favors actuators and gear ratios that minimize unnecessary repositioning energy. The current hardware summary treats `TB6612FNG` as the baseline driver, with later replacement only if current testing proves it inadequate.
+This choice prioritizes sufficient holding torque, simple target-angle control, and a control path that can be realized on a student PCB. Because the project goal is energy-aware tracking rather than rapid motion, the design favors a stepper-based actuation path that keeps the software meaning of yaw and pitch angle straightforward. In the current control pipeline, the online ``current angle'' is defined as the last target angle accepted by the `STM32` after homing, so the RL path does not currently depend on a separate online encoder.
 
 \textbf{Subsystem requirements}
 \begin{enumerate}[label=\arabic*.]
 \item Each axis shall support the mechanical travel required by the final structure, with a design target of at least $120^\circ$ yaw and $60^\circ$ pitch.
 \item Each axis shall home successfully on startup using limit switches.
-\item The motor-drive stage shall operate within its current and thermal limits during repeated startup, reversal, and hold-position tests.
+\item The stepper-driver stage shall operate within its current and thermal limits during repeated startup, reversal, and hold-position tests.
 \end{enumerate}
 
 \textbf{Verification}
 \begin{enumerate}[label=\arabic*.]
 \item Measure available travel using a protractor or encoder count and confirm the required angular range.
 \item Perform ten consecutive startup cycles and verify that homing completes successfully each time.
-\item Record motor current during repeated motion tests at the PCB test points and verify that the chosen driver remains within safe operating limits.
+\item Record motor current during repeated motion tests at the PCB test points and verify that the chosen `A4988` configuration remains within safe operating limits.
 \end{enumerate}
 
 \begin{figure}[H]
@@ -93,20 +93,20 @@ This choice prioritizes low cost, sufficient torque at modest speed, and a contr
 \end{figure}
 
 \subsection{Sensing Subsystem}
-The sensing subsystem provides both directional and energy-accounting information. A four-quadrant LDR head is used to determine the relative direction of strongest light. Each LDR forms a voltage divider with a `10~k\Omega` resistor and is sampled by the STM32 ADC on `PA0` through `PA3`. The analog node may include a `0.01~\mu F` capacitor to reduce jitter caused by noise or fast light changes. `INA219_1` measures solar-panel current and voltage before regulation so the controller can estimate generated power. `INA219_2` measures the battery-side or load-side path so the system can estimate the electrical cost of operation. These measurements allow the system to compare expected energy benefit against movement cost using data rather than a purely geometric estimate.
+The sensing subsystem provides both directional and energy-accounting information. A `BH1750 + mux + 16-sensor ring` is used to determine the relative direction and distribution of strongest light around the panel. The STM32 polls these digital light readings over I2C. `INA219_1` measures the solar-panel test path so the controller can estimate generated power under a controlled dummy load. `INA219_2` measures the motor branch so the system can estimate the electrical cost of actuation. These measurements allow the system to compare expected energy benefit against movement cost using data rather than a purely geometric estimate.
 
-The combination of cheap LDRs and direct electrical measurements reflects the actual design objective. Directional sensing alone is insufficient, because the brightest direction is not always worth pursuing if the extra generated energy is smaller than the energy consumed by movement.
+The combination of a light ring and direct electrical measurements reflects the actual design objective. Directional sensing alone is insufficient, because the brightest direction is not always worth pursuing if the extra generated energy is smaller than the energy consumed by movement.
 
 \textbf{Subsystem requirements}
 \begin{enumerate}[label=\arabic*.]
-\item The STM32 shall sample all four LDR channels and both electrical telemetry channels at a rate of at least 10~Hz.
+\item The STM32 shall sample the `BH1750` light ring and both electrical telemetry channels at a rate of at least 10~Hz.
 \item The power-sensing path shall resolve panel voltage and current well enough to distinguish meaningful changes in generated power during tracking tests.
 \item Sensor values shall be filtered to prevent rapid oscillation caused by noise or transient shadows.
 \end{enumerate}
 
 \textbf{Verification}
 \begin{enumerate}[label=\arabic*.]
-\item Log sensor samples while sweeping a light source across the panel and confirm that the quadrant imbalance changes consistently with angle.
+\item Log sensor samples while sweeping a light source across the panel and confirm that the light-ring pattern changes consistently with angle.
 \item Compare measured panel voltage/current against a benchtop multimeter and confirm acceptable error for design-level energy comparison at several operating points.
 \item Apply a moving-average or equivalent digital filter and verify that jitter in the motion command decreases without unacceptable lag.
 \end{enumerate}
@@ -114,14 +114,14 @@ The combination of cheap LDRs and direct electrical measurements reflects the ac
 \begin{figure}[H]
 \centering
 \fbox{\rule{0pt}{2.1in}\rule{0.9\linewidth}{0pt}}
-\caption{Sensor subsystem placeholder. Show the LDR quadrant divider network with ADC nodes, INA219 high-side measurement locations, optional RC filtering, and the STM32 analog/I2C connections.}
+\caption{Sensor subsystem placeholder. Show the BH1750 light-ring network through the mux, the INA219 measurement locations for panel test path and motor branch, and the STM32 I2C connections.}
 \label{fig:sensing}
 \end{figure}
 
 \subsection{Control and Communication Subsystem}
 The control subsystem is centered on the STM32F407ZGT6. The `STM32` executes local control loops, motor driving, sensor acquisition, homing, and fault handling. In the current RL pipeline, the Raspberry Pi is the formal online inference node connected over a simple UART header. The `STM32` sends the model state needed for online inference, and the Raspberry Pi returns the next target angles for the two axes. Offline training remains outside the live control loop and is performed on a PC or cloud host.
 
-At the board level, local peripherals use standard protocols: I2C for the OLED and both INA219 sensors on a shared bus with configurable pull-ups, ADC for the LDR voltages, and PWM plus direction lines for the `TB6612FNG` motor-driver stage. In the current mapping, `PB6` and `PB7` are used for `SCL` and `SDA`. The UART header carries the RL control traffic between the `STM32` and Raspberry Pi: online state upload in one direction and target-angle commands in the other. The current online inference input is intentionally narrow, using only current light information and current two-axis angle. Measured electrical telemetry remains in the logging path for reward calculation and offline evaluation.
+At the board level, local peripherals use standard protocols: I2C for the OLED, both INA219 sensors, and the `BH1750` muxed light ring, plus `STEP/DIR` outputs for the `A4988` stepper-driver stage. In the current mapping, `PB6` and `PB7` are used for `SCL` and `SDA`. The UART header carries the RL control traffic between the `STM32` and Raspberry Pi: online state upload in one direction and target-angle commands in the other. The current online inference input is intentionally narrow, using only current light-ring information and current two-axis angle. Measured electrical telemetry remains in the logging path for reward calculation and offline evaluation.
 
 \textbf{Subsystem requirements}
 \begin{enumerate}[label=\arabic*.]
@@ -140,36 +140,36 @@ At the board level, local peripherals use standard protocols: I2C for the OLED a
 \begin{figure}[H]
 \centering
 \fbox{\rule{0pt}{2.1in}\rule{0.9\linewidth}{0pt}}
-\caption{Control and communication placeholder. Insert a diagram showing the STM32 pin map, shared I2C bus for OLED and INA219 devices, ADC channels for the LDR network, PWM and direction outputs to `TB6612FNG`, and the UART link that carries online state upload and target-angle return between the STM32 and Raspberry Pi.}
+\caption{Control and communication placeholder. Insert a diagram showing the STM32 pin map, shared I2C bus for OLED, INA219 devices, and the BH1750 mux, `STEP/DIR` outputs to `A4988`, and the UART link that carries online state upload and target-angle return between the STM32 and Raspberry Pi.}
 \label{fig:control}
 \end{figure}
 
 \subsection{Power Subsystem}
-The power subsystem must support both motor actuation and stable digital logic while also making energy flow measurable. In the current hardware design, the solar-panel output first passes through `INA219_1`, then a buck stage such as `LM2596` or `TPS5430` generates a regulated `5~V` rail. That regulated output feeds a `TP4056` charging module for a single `18650` lithium-ion cell. On the load side, `INA219_2` measures the battery or system-consumption path, and an `MT3608` boost stage can raise the battery voltage back to `5~V` for the system rail when needed. A separate `3.3~V` regulator powers the STM32, OLED, INA219 devices, and LDR front end. The power board should also include accessible test points for VIN, 5~V, 3.3~V, ground, I2C, UART, and motor supply so that the bring-up order can follow a safe sequence from power validation to full electromechanical integration.
+The power subsystem must support both motor actuation and stable digital logic while also making energy flow measurable. In the current hardware design, an external `12~V` adapter powers the motor branch and both `A4988` drivers. A separate external `5~V` supply powers the Raspberry Pi and STM32 logic branch. The solar-panel output is routed through `INA219_1` into a dummy load so the panel output power can be measured independently of the controller power rails. `INA219_2` measures the motor branch supplied by the external `12~V` adapter. The power board should also include accessible test points for `12V`, `5V`, `3V3`, ground, I2C, UART, and motor supply so that the bring-up order can follow a safe sequence from power validation to full electromechanical integration.
 
 \textbf{Subsystem requirements}
 \begin{enumerate}[label=\arabic*.]
-\item The regulated `5~V` rail shall remain within tolerance during motor startup and reversal.
+\item The `5~V` logic rail shall remain within tolerance during motor startup and reversal.
 \item The power subsystem shall provide telemetry needed to estimate generated electrical power.
-\item The battery input, motor supply, and logic rails shall be partitioned and protected against short-circuit, reverse-polarity, or over-current conditions.
+\item The external `12~V` motor branch and external `5~V` logic branch shall be partitioned and protected against short-circuit, reverse-polarity, or over-current conditions.
 \end{enumerate}
 
 \textbf{Verification}
 \begin{enumerate}[label=\arabic*.]
-\item Monitor the 5~V rail during worst-case motor events and verify that the logic and display path do not brown out.
+\item Monitor the `5~V` logic rail during worst-case motor events and verify that the logic and display path do not brown out.
 \item Compare sensor-based power estimates with multimeter measurements under several load and light conditions.
-\item Validate the staged bring-up sequence by checking VIN, 5~V, 3.3~V, I2C devices, and motor supply at dedicated test points before full system integration.
+\item Validate the staged bring-up sequence by checking `12V`, `5~V`, `3.3~V`, I2C devices, and motor supply at dedicated test points before full system integration.
 \end{enumerate}
 
 \begin{figure}[H]
 \centering
 \fbox{\rule{0pt}{2.1in}\rule{0.9\linewidth}{0pt}}
-\caption{Power architecture placeholder. Show the solar panel, `INA219_1`, buck stage, `TP4056`, `18650` cell, `INA219_2`, `MT3608`, `3.3~V` logic regulation, motor branch, and the strong-current versus weak-current PCB partition.}
+\caption{Power architecture placeholder. Show the solar panel, `INA219_1`, dummy load, external `12~V` motor branch with `INA219_2`, external `5~V` logic branch, and the strong-current versus weak-current PCB partition.}
 \label{fig:power}
 \end{figure}
 
 \subsection{User Interface and One-Button Operation}
-The local user interface is intentionally minimal. A single button triggers startup and homing. A 0.96-inch OLED shows mode, solar-panel voltage, solar-panel current, and yaw/pitch state so the team can verify operation without an attached laptop. The startup state machine is:
+The local user interface is intentionally minimal. A single button triggers startup and homing. A 0.96-inch OLED shows mode, solar-panel power, motor-branch power, and yaw/pitch state so the team can verify operation without an attached laptop. The startup state machine is:
 
 \begin{enumerate}[label=\arabic*.]
 \item Power-on and self-test
@@ -183,7 +183,7 @@ This sequence directly supports the course requirement that the system function 
 \begin{figure}[H]
 \centering
 \fbox{\rule{0pt}{1.8in}\rule{0.75\linewidth}{0pt}}
-\caption{OLED placeholder. Insert a mockup or screenshot showing mode, panel voltage, panel current, estimated net-gain state, and yaw or pitch status.}
+\caption{OLED placeholder. Insert a mockup or screenshot showing mode, panel power, motor power, estimated net-gain state, and yaw or pitch status.}
 \label{fig:oled}
 \end{figure}
 
@@ -225,22 +225,21 @@ Table~\ref{tab:cost} summarizes the current estimated hardware cost. The propose
 Item & Cost (RMB) & Notes \\
 \midrule
 STM32F407ZGT6 development board & 80 & Required MCU \\
-Two geared DC motors & 140 & Yaw and pitch actuation \\
-TB6612FNG dual H-bridge & 20 & Motor driver for both axes \\
-Two INA219 sensor modules & 36 & Panel and battery telemetry \\
-LDR sensor set, resistors, and RC filter parts & 20 & Directional sensing front end \\
+Two NEMA17 stepper motors & 160 & Yaw and pitch actuation \\
+Two A4988 stepper drivers & 40 & One driver per axis \\
+Two INA219 sensor modules & 36 & Panel test path and motor branch \\
+Sixteen BH1750 sensors & 128 & Light-ring sensing array \\
+I2C mux module or IC & 20 & Repeated BH1750 addressing \\
 0.96-inch OLED & 20 & User display \\
-LM2596 or TPS5430 buck stage & 25 & Solar-side regulated supply \\
-TP4056 charging module & 8 & Single-cell charging path \\
-18650 battery cell & 20 & Energy storage \\
-MT3608 boost converter & 8 & Battery-to-system 5~V conversion \\
-3.3~V regulation & 8 & Sensor and MCU rail \\
+12~V 5~A adapter & 45 & Motor branch supply \\
+5~V logic supply & 20 & Raspberry Pi and STM32 power \\
 Button, test points, connectors, passives & 35 & UI and bring-up support \\
-Solar panel & 80 & Demo energy source \\
+Solar panel & 80 & Panel-under-test source \\
+Dummy load parts & 25 & Controlled test load for panel measurement \\
 PCB fabrication and wiring reserve & 180 & Fabrication and integration \\
 Mechanical reserve & 150 & Brackets and coupling \\
 \midrule
-Total & 830 & Core board-level hardware total \\
+Total & 1019 & Core board-level hardware total \\
 \bottomrule
 \end{longtable}
 
@@ -276,13 +275,13 @@ This project should present performance honestly. It would be misleading to clai
 The team should also design for maintainability and safe operation. Communication protocols, control limits, and test procedures should be documented so future users do not operate the system in an unsafe or misleading way. These values are consistent with the IEEE Code of Ethics, particularly the obligations to be honest and realistic in stating claims, to improve understanding of technology, and to prioritize the safety, health, and welfare of the public.
 
 \subsection{Safety}
-The project involves rotating mechanical parts, stored electrical energy, and battery-powered electronics. Key safety controls include:
+The project involves rotating mechanical parts, external power supplies, and low-voltage electronics. Key safety controls include:
 
 \begin{itemize}
 \item limit switches and software travel limits to prevent over-rotation,
-\item current-limited motor drivers and protected wiring,
+\item current-limited `A4988` drivers and protected wiring,
 \item secure mounting of the solar panel and moving frame,
-\item insulated battery and power connections,
+\item insulated external power connections and controlled common grounding,
 \item low-voltage handling procedures during benchtop testing.
 \end{itemize}
 
@@ -294,7 +293,7 @@ The team should verify that wires are strain-relieved, no conductive parts are e
 \item OpenAI, ``Harness engineering,'' OpenAI, Feb. 11, 2026. [Online]. Available: \url{https://openai.com/zh-Hans-CN/index/harness-engineering/}
 \item Texas Instruments, ``INA219 Zer\=o-drift, bidirectional current/power monitor with I\textsuperscript{2}C interface,'' datasheet.
 \item STMicroelectronics, ``STM32F407xx advanced Arm-based 32-bit MCUs,'' datasheet.
-\item \texttt{TODO}: Add vendor datasheets for selected motors, `TB6612FNG`, `LM2596/TPS5430`, `TP4056`, `MT3608`, and the battery cell.
+\item \texttt{TODO}: Add vendor datasheets for selected `NEMA17` motors, `A4988`, `BH1750`, the chosen I2C mux, and the external power adapters.
 \end{enumerate}
 
 \end{document}

@@ -6,7 +6,10 @@
 - The Raspberry Pi is part of the formal online RL pipeline rather than an optional afterthought.
 - The tracker uses a dual-axis mechanical structure.
 - Online inference only uses current light-ring intensity and current two-axis angle.
+- The current two-axis angle in the RL state is defined as the previous target angle accepted by the `STM32`.
 - Reward and evaluation can still use logged electrical measurements and safety states.
+- The final light ring uses `BH1750 + mux + 16 sensors`.
+- The final platform is externally powered; the solar panel is measured as a test source and does not power the control system.
 - The project must fit within the stated `1500 RMB` budget.
 - The system is judged primarily on feasibility, reliability, and energy-aware behavior.
 
@@ -15,14 +18,15 @@
 - Motor actuation may consume too much energy in weak light, reducing or eliminating net gain.
 - Sensor noise may cause unstable target-angle predictions.
 - Serial protocol timing may become a bottleneck if state upload and logging fields are not separated cleanly.
+- The `BH1750 + mux` topology may complicate I2C wiring, polling rate, and synchronization.
 - Logged reward-related data may be noisy enough to slow down model improvement.
 - OLED/status logic may distract from core control work if not kept minimal.
 - Budget pressure may force component substitutions later in the semester.
 
 ## Open Questions
 
-- What exact motor or actuator family will be used for the two axes?
-- How many light sensors will the final light ring use in the deployed RL pipeline?
 - How often should the Raspberry Pi update target-angle predictions?
 - What command set should the serial protocol support for normal operation, calibration, and fault handling?
+- What exact `A4988` wiring and current-limit settings should be frozen for the final hardware build?
+- What exact mux part and channel allocation should be frozen for the `BH1750` light ring?
 - What minimum OLED fields are required for the design document and demo?

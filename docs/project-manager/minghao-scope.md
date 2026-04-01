@@ -17,6 +17,7 @@ Minghao Fang is responsible for the control and software path that links sensing
 The Raspberry Pi is responsible for the online RL path:
 
 - Receive current light-ring readings and current two-axis angles from `STM32`
+- Here the current-angle fields are the last target angles accepted by `STM32`
 - Run online inference with the deployed model
 - Output the next target angles for the two axes
 - Store training logs for later offline training
@@ -43,13 +44,13 @@ The `STM32` should handle:
 
 The current RL pipeline uses:
 
-- A light-ring intensity array as the online light input
-- Current two-axis angle as the online pose input
-- Current and voltage sensing as training and evaluation support data
+- A `BH1750 + mux + 16-sensor ring` as the online light input
+- The previous accepted target angle as the online current-angle input
+- `INA219` measurements for motor-power and panel-output evaluation support data
 
 ### OLED
 
-The OLED should provide a compact live status display such as battery or power state, operating mode, and current yaw or pitch state.
+The OLED should provide a compact live status display such as panel power, motor power, operating mode, and current yaw or pitch state.
 
 ## PM Takeaway
 

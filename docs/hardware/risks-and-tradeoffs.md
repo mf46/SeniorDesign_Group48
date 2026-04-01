@@ -2,20 +2,20 @@
 
 ## Main Tradeoffs
 
-### Geared DC Motors vs. Servos
+### NEMA17 Steppers vs. Smaller Actuators
 
-- Geared DC motors plus encoder feedback are cheaper per torque and scale well for panel loads.
-- Servos simplify control but may have limited range, weaker holding behavior, or worse long-term durability.
+- `NEMA17` stepper motors match the current target-angle control abstraction and simplify the meaning of "current angle" after homing.
+- They may draw more holding current and add mechanical weight compared with smaller geared solutions.
 
-### TB6612FNG vs. Higher-Current Drivers
+### Fixed Four-Quadrant Head vs. Light Ring
 
-- `TB6612FNG` is much more PCB-friendly for a compact student design and is a better fit for low-current tracker motors.
-- A higher-current driver provides more current margin but is physically bulkier and less aligned with an integrated custom PCB unless the motor choice truly demands it.
+- A light ring matches the RL input definition directly and gives the model richer directional information.
+- It adds more channels, routing complexity, and interface-definition work than a simple four-quadrant head.
 
-### LDR Array vs. Dedicated Sun Sensor
+### Analog Light Ring vs. BH1750 + Mux
 
-- LDRs are cheap and easy to explain in a senior design setting.
-- They are less accurate and more temperature-sensitive, so the control algorithm should combine online light input with measured energy results rather than trusting light sensing alone.
+- `BH1750 + mux` gives a cleaner digital interface and avoids calibrating many analog ADC channels.
+- It increases shared-bus complexity and may limit polling rate if the full `16`-sensor ring is sampled too aggressively.
 
 ### STM32 Execution vs. Raspberry Pi Inference
 
@@ -26,23 +26,25 @@
 ## Technical Risks
 
 - Motor current spikes may brown out the Raspberry Pi if power rails are not isolated well.
-- The chosen compact H-bridge may be under-sized if the motor stall current is not screened early.
+- The `A4988` current limit may be misconfigured if the `NEMA17` requirement is not screened early.
+- The muxed `BH1750` ring may become a timing bottleneck if the sampling schedule is not designed carefully.
 - Mechanical backlash may reduce pointing repeatability.
 - INA219 accuracy may be enough for relative optimization but not for precision energy auditing.
-- `TP4056` and `MT3608` add practical inefficiency, so measured net-gain results may be worse than idealized calculations.
+- The external-supply test setup means the report must distinguish measured panel output from total system input power.
 - If the UART protocol mixes online control data and training logs poorly, latency or debugging cost may rise.
-- If the panel is too heavy, low-cost motors may stall or overheat.
+- If the panel is too heavy, the chosen stepper may still lose steps or overheat.
 
 ## Mitigations
 
-- Use a separated motor branch plus distinct 5 V and 3.3 V logic rails with controlled grounding discipline.
-- Measure or estimate stall current before locking the motor-driver footprint.
+- Use a separated motor branch plus distinct 12 V and 5 V rails with controlled grounding discipline.
+- Screen the required motor current before locking the stepper-driver footprint.
 - Add current limits, travel limits, and software deadbands to avoid hunting.
 - Keep the online inference interface narrow: current light state plus current angle in, next target angles out.
 - Log electrical telemetry and safety states separately for reward design and offline analysis.
-- Use homing switches so angle estimates can be reset each startup.
+- Set a fixed polling schedule for the `BH1750 + mux` ring and verify that it stays within the control-loop budget.
+- Use homing switches so the internal angle estimate can be reset each startup.
 - Place test points on the power rails and communication buses so bring-up can proceed in stages.
-- Keep the final report honest that the charging and boost stages are low-cost pragmatic choices, not high-efficiency energy-harvesting ICs.
+- Keep the final report honest that the platform is externally powered and uses the solar panel as a measured test source.
 
 ## Assumptions
 

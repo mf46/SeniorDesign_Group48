@@ -11,7 +11,9 @@
 - 一圈光照传感器的当前光强 `light_ring = [R1..Rn]`
 - 当前两个步进电机角度 `current_angle = [theta1, theta2]`
 
-这里的输入是当前时刻的现场状态，不包含电压、电流、功耗或安全状态。
+这里的 `current_angle` 定义为上一轮 inference 输出、并被 `STM32` 接受执行的目标角度。当前版本中，它不是来自独立角度传感器。
+
+这里的输入是当前时刻的在线状态，不包含电压、电流、功耗或安全状态。
 
 ### inference 输出
 
@@ -20,6 +22,10 @@
 - `target_angle = [target_theta1, target_theta2]`
 
 树莓派输出这个目标角度后，由 `STM32` 负责执行、限位检查和状态回传。
+
+如果模型判断当前不需要移动，则直接输出：
+
+- `target_angle = current_angle`
 
 ## 训练样本定义
 
