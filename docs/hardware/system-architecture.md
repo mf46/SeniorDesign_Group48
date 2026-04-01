@@ -7,7 +7,7 @@ The custom PCB should be treated as the project's lower-level control and power 
 ### Real-Time Controller
 
 - `STM32F407ZGT6`
-- Role: sample sensors, run motor control loops, execute calibration, refresh OLED, and enforce safety limits
+- Role: sample sensors, run motor control loops, execute calibration, refresh OLED, enforce safety limits, and exchange state and command data with the Raspberry Pi
 
 ### Sensing
 
@@ -53,26 +53,37 @@ The custom PCB should be treated as the project's lower-level control and power 
 
 - It matches the newly added authoritative hardware summary.
 - It stays within a student-feasible budget and uses commonly available modules.
-- It directly supports Minghao's responsibility area: STM32 communication with motors, light sensors, and current/voltage sensors.
+- It directly supports Minghao's responsibility area: STM32 communication with sensors, motor execution, and the Raspberry Pi inference path.
 - The PCB role is explicit: sensing, power regulation, battery charging, power measurement, and motor driving.
 - The design exposes measurable net-energy data instead of relying only on geometric tracking logic.
+
+## RL-Related Control Split
+
+In the current pipeline, the control split above the hardware board is:
+
+- `STM32`: sample sensors, execute commands, report status, and enforce safety
+- Raspberry Pi: receive online state, run inference, return the next target angles, and store logs
+- `PC/云端`: use logs for offline training, export `ONNX`, and redeploy the model to the Raspberry Pi
+
+At the RL interface level, the Raspberry Pi consumes online state derived from current light information and current axis angle, then returns the next target angles for the two axes. The electrical telemetry measured on the board remains available for logging, reward design, and evaluation.
 
 ## Recommended Signal Flow
 
 1. The solar panel output is measured by `INA219_1`.
 2. The regulated charging path feeds the `18650` battery through `TP4056`.
 3. The battery-side system load is measured by `INA219_2`.
-4. The STM32 reads four LDR channels through the ADC and both INA219 devices through I2C.
-5. The STM32 drives yaw and pitch through `TB6612FNG` using PWM plus direction signals.
-6. The OLED displays operating mode and electrical telemetry over the same I2C bus.
-7. A UART header can still expose telemetry to a Raspberry Pi or external host if the team keeps the higher-level optimization split.
+4. The `STM32` reads the local sensing inputs and current board state.
+5. The `STM32` uploads the online state needed for RL inference to the Raspberry Pi.
+6. The Raspberry Pi predicts the next target angles and returns them to the `STM32`.
+7. The `STM32` drives yaw and pitch through `TB6612FNG` using PWM plus direction signals.
+8. The OLED displays operating mode and electrical telemetry over the same I2C bus.
 
 ## PCB-Level Design Rules
 
 - Use a two-layer board only if the strong-current and weak-signal regions are physically separated.
 - Keep the buck converter, motor driver, and motor connector return loops compact and away from the ADC/I2C region.
-- Provide dedicated test points for `VIN`, `5V`, `3V3`, `GND`, `SCL`, `SDA`, and the motor rail, with UART pads if external supervision is retained.
-- Keep the Raspberry Pi or PC connection optional through a simple UART header rather than making it a hard dependency of the board.
+- Provide dedicated test points for `VIN`, `5V`, `3V3`, `GND`, `SCL`, `SDA`, and the motor rail, with UART pads for the Raspberry Pi communication link.
+- Keep the board-level design centered on the STM32 even though the full RL pipeline includes Raspberry Pi inference above it.
 
 ## Suggested Operating Modes
 

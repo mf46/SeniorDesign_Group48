@@ -34,14 +34,14 @@ Small-scale photovoltaic systems often lose harvest efficiency because a fixed s
 This project addresses that gap by building a self-contained dual-axis photovoltaic tracker that decides not only where to point the panel, but also whether moving is worth the energy cost. The result is a more realistic microgrid-oriented controller for small distributed energy resources, where energy-aware behavior matters more than maximizing motion.
 
 \subsection{Solution Overview and Visual Aid}
-The proposed system uses an STM32-centered hardware architecture. An STM32F407ZGT6 microcontroller on a dedicated lower-level control PCB handles real-time sensing, local motor control, safety checks, power measurement, battery-management supervision, and OLED status output. A dual-axis mechanical platform changes the solar panel yaw and pitch angles using low-power geared motors driven through a `TB6612FNG` dual H-bridge. Light sensors and current/voltage sensors provide the information needed to estimate whether the system should rotate, hold position, or enter a low-activity mode. A Raspberry Pi or external host may still be attached through a UART header if the team keeps the higher-level optimization layer, but the board-level hardware does not depend on that link for basic operation.
+The proposed system uses an STM32-centered hardware architecture with a Raspberry Pi-based RL inference layer above it. An STM32F407ZGT6 microcontroller on a dedicated lower-level control PCB handles real-time sensing, local motor control, safety checks, power measurement, battery-management supervision, and OLED status output. A dual-axis mechanical platform changes the solar panel yaw and pitch angles using low-power geared motors driven through a `TB6612FNG` dual H-bridge. The current RL pipeline sends online state from the `STM32` to the Raspberry Pi, where the deployed model reads current light information and the current two-axis angle, then predicts the next target angles for the two axes. The Raspberry Pi returns those target angles to the `STM32`, which executes them locally. Electrical telemetry is still measured and logged, but it is reserved for reward design, evaluation, and offline training rather than the online inference input itself.
 
 The target operating sequence is simple: after a single button press, the tracker performs self-check and homing, enters autonomous tracking mode, and continuously balances directional light information against measured power and battery state. When ambient conditions make movement unprofitable, the controller pauses motion to avoid negative net gain.
 
 \begin{figure}[H]
 \centering
 \fbox{\rule{0pt}{2.1in}\rule{0.9\linewidth}{0pt}}
-\caption{Visual aid placeholder. Insert a figure showing the solar tracker in context, including the panel, dual-axis frame, Raspberry Pi, STM32 controller, battery, and sensing path.}
+\caption{Visual aid placeholder. Insert a figure showing the solar tracker in context, including the panel, dual-axis frame, Raspberry Pi inference node, STM32 controller, battery, and sensing path.}
 \label{fig:visual-aid}
 \end{figure}
 
@@ -57,12 +57,12 @@ The final system shall satisfy the following high-level requirements:
 \section{Design}
 
 \subsection{Block Diagram}
-The system is divided into six functional blocks: optimization, embedded control, sensing, actuation, power, and user interface. The Raspberry Pi sends supervisory commands to the STM32 over a dedicated UART header. The STM32-centered PCB integrates the sensing front end, I2C peripherals, motor-drive interface, and power-distribution network. The power subsystem uses a staged rail structure so that motor activity does not collapse the logic supply during startup or reversal.
+The system is divided into six functional blocks: online inference, embedded control, sensing, actuation, power, and user interface. The `STM32` uploads online state to the Raspberry Pi over a dedicated UART header, and the Raspberry Pi returns the next target angles for the two axes. The STM32-centered PCB integrates the sensing front end, I2C peripherals, motor-drive interface, and power-distribution network. The power subsystem uses a staged rail structure so that motor activity does not collapse the logic supply during startup or reversal. Offline training is performed on a PC or cloud host and is connected back into the system by exporting an `ONNX` model that is deployed to the Raspberry Pi.
 
 \begin{figure}[H]
 \centering
 \fbox{\rule{0pt}{2.1in}\rule{0.9\linewidth}{0pt}}
-\caption{Block diagram placeholder. Show the STM32 lower-level control PCB, shared I2C bus for OLED and INA219 sensors, ADC-connected LDR array, TB6612FNG motor-driver stage, dual-axis motors, and the power path from solar panel through buck, charger, battery, boost, and logic rails.}
+\caption{Block diagram placeholder. Show the STM32 lower-level control PCB, Raspberry Pi inference node, online state upload path, target-angle return path, shared I2C bus for OLED and INA219 sensors, ADC-connected LDR array, TB6612FNG motor-driver stage, dual-axis motors, and the power path from solar panel through buck, charger, battery, boost, and logic rails.}
 \label{fig:block-diagram}
 \end{figure}
 
@@ -119,28 +119,28 @@ The combination of cheap LDRs and direct electrical measurements reflects the ac
 \end{figure}
 
 \subsection{Control and Communication Subsystem}
-The control subsystem is centered on the STM32F407ZGT6. The STM32 executes local control loops, motor driving, sensor acquisition, homing, and fault handling. If the team keeps a higher-level optimization layer from the original project framing, that layer can connect through a simple UART header without changing the board-level hardware.
+The control subsystem is centered on the STM32F407ZGT6. The `STM32` executes local control loops, motor driving, sensor acquisition, homing, and fault handling. In the current RL pipeline, the Raspberry Pi is the formal online inference node connected over a simple UART header. The `STM32` sends the model state needed for online inference, and the Raspberry Pi returns the next target angles for the two axes. Offline training remains outside the live control loop and is performed on a PC or cloud host.
 
-At the board level, local peripherals use standard protocols: I2C for the OLED and both INA219 sensors on a shared bus with configurable pull-ups, ADC for the LDR voltages, and PWM plus direction lines for the `TB6612FNG` motor-driver stage. In the current mapping, `PB6` and `PB7` are used for `SCL` and `SDA`. A reserved 4-pin UART header can expose telemetry or accept supervisory commands from a Raspberry Pi or PC without changing the core board operation.
+At the board level, local peripherals use standard protocols: I2C for the OLED and both INA219 sensors on a shared bus with configurable pull-ups, ADC for the LDR voltages, and PWM plus direction lines for the `TB6612FNG` motor-driver stage. In the current mapping, `PB6` and `PB7` are used for `SCL` and `SDA`. The UART header carries the RL control traffic between the `STM32` and Raspberry Pi: online state upload in one direction and target-angle commands in the other. The current online inference input is intentionally narrow, using only current light information and current two-axis angle. Measured electrical telemetry remains in the logging path for reward calculation and offline evaluation.
 
 \textbf{Subsystem requirements}
 \begin{enumerate}[label=\arabic*.]
 \item The shared I2C bus shall support the OLED plus both INA219 devices without address conflict.
-\item The STM32 shall continue to enforce safe motor behavior independently of any optional external UART supervisor.
-\item If a UART supervisor is connected, loss of that link shall not leave the board in an unsafe motor state.
+\item The `STM32` shall continue to enforce safe motor behavior independently of the Raspberry Pi inference node.
+\item Loss of the UART link shall not leave the board in an unsafe motor state.
 \end{enumerate}
 
 \textbf{Verification}
 \begin{enumerate}[label=\arabic*.]
 \item Scan the I2C bus and verify that the OLED and both INA219 devices respond at their intended addresses.
-\item Disconnect any optional UART supervisor and verify that the STM32 exits or holds active motion safely.
+\item Disconnect the Raspberry Pi communication link and verify that the `STM32` exits or holds active motion safely.
 \item Observe PWM and direction outputs for both axes and confirm that the expected logic state reaches the motor driver during forward, reverse, stop, and brake commands.
 \end{enumerate}
 
 \begin{figure}[H]
 \centering
 \fbox{\rule{0pt}{2.1in}\rule{0.9\linewidth}{0pt}}
-\caption{Control and communication placeholder. Insert a diagram showing the STM32 pin map, shared I2C bus for OLED and INA219 devices, ADC channels for the LDR network, PWM and direction outputs to `TB6612FNG`, and the optional UART header for external supervision.}
+\caption{Control and communication placeholder. Insert a diagram showing the STM32 pin map, shared I2C bus for OLED and INA219 devices, ADC channels for the LDR network, PWM and direction outputs to `TB6612FNG`, and the UART link that carries online state upload and target-angle return between the STM32 and Raspberry Pi.}
 \label{fig:control}
 \end{figure}
 
@@ -259,7 +259,7 @@ Week & Main task & Owner \\
 4 & Mechanical CAD and mount fabrication start & Yikai \\
 5 & Bring up STM32 sensor reads and motor driver tests & Minghao, Ziru \\
 6 & Implement UART link and OLED telemetry & Minghao \\
-7 & Raspberry Pi optimization prototype and logging & Minghao \\
+7 & Raspberry Pi inference, logging, and ONNX deployment prototype & Minghao \\
 8 & Integrate mechanical frame with electronics & Whole team \\
 9 & Homing, tracking, and power-measurement testing & Whole team \\
 10 & Tune deadband and net-gain decision logic & Minghao, Yifei \\

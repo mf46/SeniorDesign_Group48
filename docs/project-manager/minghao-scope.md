@@ -2,43 +2,55 @@
 
 ## Owned Work
 
-Minghao Fang is responsible for the control and software path that links sensing, optimization, and feedback:
+Minghao Fang is responsible for the control and software path that links sensing, inference, training, and feedback:
 
-- STM32 communication with motors, light sensors, and current/voltage sensors
-- Raspberry Pi edge-computing optimization algorithms
-- Serial communication protocol between Raspberry Pi and STM32
+- `STM32` communication with light sensors, motor execution, and status return
+- Raspberry Pi online inference, logging, and model loading
+- Serial communication protocol between Raspberry Pi and `STM32`
+- Offline training data preparation and model deployment flow
 - OLED data visualization
 
 ## Interface Boundaries
 
 ### Raspberry Pi
 
-The Pi should make higher-level decisions:
+The Raspberry Pi is responsible for the online RL path:
 
-- Estimate whether motion will improve net energy
-- Decide if tracking should be paused or resumed
-- Send commands to the STM32 in a compact protocol
+- Receive current light-ring readings and current two-axis angles from `STM32`
+- Run online inference with the deployed model
+- Output the next target angles for the two axes
+- Store training logs for later offline training
+- Load the exported `ONNX` model for deployment
 
 ### STM32F407ZGT6
 
-The STM32 should handle:
+The `STM32` should handle:
 
 - Sensor sampling
 - Real-time actuator control
-- PWM or motor-control outputs
 - Command execution and status reporting
+- Safety checks such as timeout stop, travel limits, and fault handling
+
+### Training Side
+
+`PC/云端` should handle:
+
+- Offline model training
+- Reward calculation based on logged energy and safety information
+- Model export and version update
 
 ### Sensors
 
-Likely sensing inputs include:
+The current RL pipeline uses:
 
-- Light sensors for irradiance or relative brightness
-- Current and voltage sensing for energy accounting
+- A light-ring intensity array as the online light input
+- Current two-axis angle as the online pose input
+- Current and voltage sensing as training and evaluation support data
 
 ### OLED
 
-The OLED should provide a compact live status display such as battery/power state, operating mode, and whether tracking is active.
+The OLED should provide a compact live status display such as battery or power state, operating mode, and current yaw or pitch state.
 
 ## PM Takeaway
 
-Minghao's work sits at the system integration layer. Most design risk will come from the protocol, timing, and how accurately the controller can estimate net energy from sensor data.
+Minghao's work sits at the system integration layer. Most design risk will come from the protocol, timing, logging quality, and whether the online model interface stays simple enough for stable deployment while still supporting useful reward design.

@@ -7,7 +7,7 @@ Description: context image showing the solar tracker, panel, battery, Raspberry 
 Section: `1.2 Solution Overview & Visual Aid`
 
 2. `Whole-system block diagram`
-Description: Raspberry Pi, STM32 lower-level control PCB, UART header, shared I2C bus, ADC-based LDR inputs, motor-drive stage, motors, OLED, and split power rails with signal arrows.
+Description: Raspberry Pi inference node, STM32 lower-level control PCB, state-upload path, target-angle return path, shared I2C bus, sensor front end, motor-drive stage, motors, OLED, and split power rails with signal arrows.
 Section: `2.1 Block Diagram`
 
 3. `Mechanical dual-axis tracker sketch`
@@ -15,11 +15,11 @@ Description: yaw axis base, pitch axis bracket, panel mounting, and limit-switch
 Section: `2.2 Mechanical and Actuation Subsystem`
 
 4. `Sensor subsystem diagram`
-Description: LDR quadrant head, INA219 current/voltage sensors, battery telemetry path, and sampled signals into STM32.
+Description: light-sensor front end, angle-state source, INA219 current and voltage sensors, battery telemetry path, and sampled signals into STM32.
 Section: `2.3 Sensing Subsystem`
 
 5. `Control and communication flow`
-Description: UART command/telemetry loop between Raspberry Pi and STM32 plus local PWM, ADC, and shared I2C interfaces, including heartbeat and fail-safe behavior.
+Description: state upload from STM32 to Raspberry Pi, target-angle command return from Raspberry Pi to STM32, local PWM and I2C interfaces, heartbeat, logging path, and fail-safe behavior.
 Section: `2.4 Control and Communication Subsystem`
 
 6. `Power architecture`
@@ -37,9 +37,13 @@ Section: `2.7 Tolerance Analysis`
 ## Nice-to-Have Figures
 
 1. `UART packet format`
-Description: frame layout table or bit/byte diagram.
+Description: frame layout table or bit or byte diagram showing `light_ring + current_angle` upload and `target_angle` return.
 Section: `2.4 Control and Communication Subsystem`
 
-2. `Verification setup photo`
+2. `Training and deployment loop`
+Description: tree showing Raspberry Pi logging, offline `PyTorch` training, `ONNX` export, and redeployment to Raspberry Pi.
+Section: `2.4 Control and Communication Subsystem`
+
+3. `Verification setup photo`
 Description: benchtop measurement arrangement showing staged bring-up at test points, rail validation, and tracking or motor-energy tests.
 Section: `2.x verification discussion`

@@ -30,10 +30,11 @@ Budget reserve: about `683 RMB`
 - `INA219` is good enough for demonstration-grade energy accounting and communicates cleanly over I2C.
 - `TB6612FNG`, `TP4056`, `LM2596/TPS5430`, and `MT3608` match the new authoritative board-level design.
 - Using LDRs for directional sensing is much cheaper than precision irradiance instruments and matches the course scope.
+- The Raspberry Pi remains a system-level RL node for inference and logging, but the PCB BOM stays centered on the STM32-side hardware actually mounted on the board.
 
 ## Fallback Options
 
-- If the full master-slave architecture is kept, a Raspberry Pi can still be added through a UART header without changing the core PCB design.
+- If Raspberry Pi deployment is delayed, the board can still be brought up and validated at the STM32 hardware level first.
 - If measured motor stall current is too high for `TB6612FNG`, switch only the driver stage to a higher-current alternative.
 - If worm-geared motors are unavailable, use compact metal-geared DC motors only if travel, backlash, and holding torque still meet the mechanical requirement.
 - If two INA219 boards are unnecessary, measure only the panel rail directly and infer battery usage from motor and system states.
