@@ -1,5 +1,7 @@
 # System Architecture
 
+This page is the normalized hardware architecture. For the original top-level sketch and preserved source details, see [`top-level-reference.md`](/home/fangminghao/SeniorDesign_Group48/docs/hardware/top-level-reference.md).
+
 ## Proposed Hardware Stack
 
 The custom PCB should be treated as the project's lower-level control and interface board. It hosts the `BH1750 + mux + 16-sensor ring`, dual INA219 measurement path, the `A4988` stepper-driver stage, the OLED header, and the interfaces around an `STM32F407ZGT6`.
@@ -14,6 +16,7 @@ The custom PCB should be treated as the project's lower-level control and interf
 - A `BH1750 + mux + 16-sensor ring` arranged around the panel for directional light sampling
 - `INA219_1` for solar-panel test-path current and voltage measurement
 - `INA219_2` for motor-branch current and voltage measurement
+- The top-level hardware sketch still records the panel placeholder as a `6V 100mA 80x55 mm` polycrystalline panel
 
 ### STM32 Pin Map
 
@@ -41,6 +44,7 @@ The custom PCB should be treated as the project's lower-level control and interf
 
 - An external `12 V` adapter feeds the motor branch and both `A4988` drivers
 - An external `5 V` supply feeds the Raspberry Pi and `STM32` logic branch
+- The original top-level source describes the motor adapter as a `60W 12V 5A` supply fed from `220V AC` mains
 - `INA219_1` measures the solar-panel test path, where the panel drives a dummy load and does not power the controller
 - `INA219_2` measures the motor branch supplied by the external `12 V` adapter
 - The logic branch and motor branch remain separate but must share a common ground reference for control signaling
@@ -69,7 +73,7 @@ In the current implementation assumption, `current_angle` is defined as the prev
 1. The solar panel output is sent through `INA219_1` into a dummy load so panel output power can be measured independently of the control system power rails.
 2. The external `12 V` adapter feeds the two `A4988` motor drivers through the motor branch measured by `INA219_2`.
 3. The external `5 V` supply feeds the Raspberry Pi and the `STM32` logic branch.
-4. The `STM32` polls the `BH1750 + mux + 16-sensor ring` and the two INA219 devices.
+4. The `STM32` polls the `BH1750 + mux + 16-sensor ring` and the two INA219 devices, reflecting the top-level sketch's original "I2C splitter/module" concept in a more implementation-ready form.
 5. The `STM32` uploads the online state needed for RL inference to the Raspberry Pi.
 6. The Raspberry Pi predicts the next target angles and returns them to the `STM32`.
 7. The `STM32` drives yaw and pitch through `A4988` using `STEP/DIR` style signals.

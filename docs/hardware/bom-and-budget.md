@@ -25,11 +25,12 @@ Budget reserve: about `481 RMB`
 
 ## Cost Rationale
 
+- The current top-level source sketch describes the panel placeholder as `6V 100mA 80x55 mm`, which is adequate as a documentation assumption until the exact purchased panel is frozen.
 - `NEMA17` keeps the actuation model compatible with target-angle control and open-loop step counting after homing.
 - `INA219` is good enough for demonstration-grade energy accounting and communicates cleanly over I2C.
 - `A4988` matches the final stepper control path.
 - `BH1750 + mux` matches the final light-ring interface more directly than an analog ring prototype.
-- Separate external `12V` and `5V` supplies simplify bring-up compared with a self-powered architecture.
+- Separate external `12V` and `5V` supplies simplify bring-up compared with a self-powered architecture. The top-level sketch currently calls the motor adapter out as `60W 12V 5A`.
 - The Raspberry Pi remains a system-level RL node for inference and logging, but the PCB BOM stays centered on the STM32-side hardware actually mounted on the board.
 
 ## Fallback Options

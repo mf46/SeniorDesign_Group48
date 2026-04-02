@@ -3,11 +3,11 @@
 ## Required Figures
 
 1. `System visual aid`
-Description: context image showing the solar tracker, panel under test, external 12 V motor supply, external 5 V logic supply, Raspberry Pi, STM32, and dual-axis mount in use.
+Description: context image showing the solar tracker, panel under test, external 12 V motor supply, external 5 V logic supply, Raspberry Pi, STM32, and dual-axis mount in use. Use [`docs/hardware/top-level-reference.md`](/home/fangminghao/SeniorDesign_Group48/docs/hardware/top-level-reference.md) as the source for the panel-path, motor-path, and training-deployment split.
 Section: `1.2 Solution Overview & Visual Aid`
 
 2. `Whole-system block diagram`
-Description: Raspberry Pi inference node, STM32 lower-level control PCB, state-upload path, target-angle return path, `BH1750 + mux` light ring, two INA219 measurement paths, A4988 motor-drive stage, motors, OLED, and split 12 V / 5 V power rails with signal arrows.
+Description: Raspberry Pi inference node, STM32 lower-level control PCB, state-upload path, target-angle return path, `BH1750 + mux` light ring, two INA219 measurement paths, A4988 motor-drive stage, motors, OLED, and split 12 V / 5 V power rails with signal arrows. Preserve the top-level source relationships: panel -> `INA219_1` -> dummy load, and external `12V` adapter -> motor branch -> `INA219_2`.
 Section: `2.1 Block Diagram`
 
 3. `Mechanical dual-axis tracker sketch`

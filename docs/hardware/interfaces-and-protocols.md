@@ -1,5 +1,7 @@
 # Interfaces and Protocols
 
+This note reflects the normalized implementation view. The source sketch behind it is preserved in [`top-level-reference.md`](/home/fangminghao/SeniorDesign_Group48/docs/hardware/top-level-reference.md).
+
 ## Peripheral-Level Interfaces
 
 | Link | Protocol | Why It Fits |
@@ -28,6 +30,7 @@
   - `INA219_1`: `0x40`
   - `INA219_2`: `0x41`
 - `BH1750` sensors sit behind the mux rather than directly on the shared bus.
+- This is the implementation-ready interpretation of the `TopLevel.txt` "I2C splitter/module" block.
 - STM32 master pins:
   - `PB6`: `SCL`
   - `PB7`: `SDA`
@@ -70,3 +73,7 @@
 - The solar measurement path and motor measurement path should be physically legible in the schematic and layout.
 - Motor power must come from the external `12 V` supply branch, not from the STM32 rail.
 - The `12 V` and `5 V` branches must share a common ground reference for control signaling.
+- Keep the schematic visually close to the top-level source split:
+  - panel-under-test -> `INA219_1` -> dummy load
+  - external `12V` adapter -> motor branch -> `INA219_2` -> `A4988` drivers
+  - external `5V` supply -> Raspberry Pi and STM32 logic

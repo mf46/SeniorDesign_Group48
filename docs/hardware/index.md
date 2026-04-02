@@ -4,6 +4,7 @@ This folder captures the proposed electrical and embedded architecture for the e
 
 ## Start Here
 
+- [Top-level hardware reference](./top-level-reference.md)
 - [System architecture](./system-architecture.md)
 - [Proposal review](./proposal-review.md)
 - [BOM and budget](./bom-and-budget.md)
@@ -13,6 +14,7 @@ This folder captures the proposed electrical and embedded architecture for the e
 ## Design Summary
 
 - `STM32F407ZGT6` is the mandatory real-time controller.
+- `top-level-reference.md` preserves the original design intent from `TopLevel.txt` in durable documentation form.
 - `system-architecture.md` is the current hardware source of truth.
 - The custom PCB acts as the low-level control, sensing, logic-interface, and motor-drive board.
 - A `BH1750 + mux + 16-sensor ring`, dual `INA219` measurement, `NEMA17` stepper motors, `A4988` stepper drivers, and separate external `12V` and `5V` supplies form the current electrical stack.
