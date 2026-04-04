@@ -5,8 +5,9 @@ from __future__ import annotations
 import argparse
 
 import numpy as np
+import onnxruntime as ort
 
-from rl_training.configs.default import get_default_config
+from rl_training.configs.default import get_default_config, get_reward_config
 from rl_training.env.solar_tracker_env import SolarTrackerEnv
 from rl_training.utils.angles import denormalize_action
 
@@ -16,13 +17,9 @@ def main():
     parser.add_argument("--model", default="rl_training/exports/policy_actor.onnx")
     args = parser.parse_args()
 
-    try:
-        import onnxruntime as ort
-    except ImportError as exc:
-        raise SystemExit("onnxruntime is required for the demo. Install it before running this script.") from exc
-
     config = get_default_config()
-    env = SolarTrackerEnv(config["env"], config["reward"])
+    reward_cfg = get_reward_config(config, "stage1")
+    env = SolarTrackerEnv(config["env"], reward_cfg, "stage1")
     obs, _ = env.reset(seed=config["train"]["seed"])
 
     session = ort.InferenceSession(args.model, providers=["CPUExecutionProvider"])
@@ -38,4 +35,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

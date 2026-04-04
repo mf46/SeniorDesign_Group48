@@ -101,5 +101,4 @@ class TD3Agent:
         self.critic_target.load_state_dict(payload["critic_target"])
         self.actor_optimizer.load_state_dict(payload["actor_optimizer"])
         self.critic_optimizer.load_state_dict(payload["critic_optimizer"])
-        self.total_updates = payload.get("total_updates", 0)
-
+        self.total_updates = payload["total_updates"]

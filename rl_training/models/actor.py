@@ -25,8 +25,20 @@ class Actor(nn.Module):
     def __init__(self, model_config, angle_limits, num_sensors=16):
         super().__init__()
         self.encoder = StateFeatureEncoder(num_sensors=num_sensors, angle_limits=angle_limits)
-        self.ring_branch = mlp(num_sensors, (model_config["ring_hidden_dim"], model_config["ring_hidden_dim"]), model_config["ring_hidden_dim"])
-        self.aux_branch = mlp(9, (model_config["aux_hidden_dim"], model_config["aux_hidden_dim"]), model_config["aux_hidden_dim"])
+        if model_config["feature_dim"] != self.encoder.feature_dim:
+            raise ValueError(
+                f"Configured feature_dim {model_config['feature_dim']} does not match encoder feature_dim {self.encoder.feature_dim}"
+            )
+        self.ring_branch = mlp(
+            num_sensors,
+            (model_config["ring_hidden_dim"], model_config["ring_hidden_dim"]),
+            model_config["ring_hidden_dim"],
+        )
+        self.aux_branch = mlp(
+            7,
+            (model_config["aux_hidden_dim"], model_config["aux_hidden_dim"]),
+            model_config["aux_hidden_dim"],
+        )
         fusion_dims = model_config["fusion_hidden_dims"]
         self.fusion = mlp(
             model_config["ring_hidden_dim"] + model_config["aux_hidden_dim"],
@@ -53,4 +65,3 @@ class Actor(nn.Module):
     def predict_target_angle(self, state_raw, angle_limits, device="cpu"):
         action_norm = self.predict_normalized_action(state_raw, device=device)
         return denormalize_action(action_norm, angle_limits)
-
